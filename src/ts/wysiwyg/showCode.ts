@@ -5,15 +5,16 @@ export const showCode = (previewElement: HTMLElement, vditor: IVditor, first = t
     const previousElement = previewElement.previousElementSibling as HTMLElement;
     const range = previousElement.ownerDocument.createRange();
     if (previousElement.tagName === "CODE") {
-        previousElement.style.display = "inline-block";
+        // previousElement.style.display = "inline-block";
+        previousElement.style.display = "none";
         if (first) {
             range.setStart(previousElement.firstChild, 1);
         } else {
             range.selectNodeContents(previousElement);
         }
     } else {
-        previousElement.style.display = "block";
-
+        // previousElement.style.display = "block";
+        previousElement.style.display = "none";
         if (!previousElement.firstChild.firstChild) {
             previousElement.firstChild.appendChild(document.createTextNode(""));
         }

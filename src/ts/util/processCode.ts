@@ -88,6 +88,5 @@ export const processCodeRender = (previewPanel: HTMLElement, vditor: IVditor) =>
         highlightRender(Object.assign({}, vditor.options.preview.hljs), previewPanel, vditor.options.cdn);
         codeRender(previewPanel);
     }
-
     previewPanel.setAttribute("data-render", "1");
 };

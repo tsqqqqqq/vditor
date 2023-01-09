@@ -29,6 +29,7 @@ import {getRenderElementNextNode, modifyPre} from "./inlineTag";
 import {input} from "./input";
 import {showCode} from "./showCode";
 import {getMarkdown} from "../markdown/getMarkdown";
+import {removeBlockElement} from "./processKeydown";
 
 class WYSIWYG {
     public range: Range;
@@ -425,7 +426,8 @@ class WYSIWYG {
 
             // 打开链接
             if (event.target.tagName === "A") {
-                window.open(event.target.getAttribute("href"));
+                const strWindowFeatures = "width=1000,height=500,menubar=yes,location=yes,resizable=yes,scrollbars=true,status=true";
+                window.open(event.target.getAttribute("href"), '_blank', strWindowFeatures);
             }
 
             const range = getEditorRange(vditor);
@@ -452,6 +454,7 @@ class WYSIWYG {
                 previewElement =
                     hasClosestByClassName(getEditorRange(vditor).startContainer, "vditor-wysiwyg__preview");
             }
+            // 当光标落于展示区的时候 不展开代码块
             if (previewElement) {
                 showCode(previewElement, vditor);
             }
@@ -460,50 +463,65 @@ class WYSIWYG {
         });
 
         this.element.addEventListener("keyup", (event: KeyboardEvent & { target: HTMLElement }) => {
-            if (event.isComposing || isCtrl(event)) {
-                return;
-            }
-            // 除 md 处理、cell 内换行、table 添加新行/列、代码块语言切换、block render 换行、跳出/逐层跳出 blockquote、h6 换行、
-            // 任务列表换行、软换行外需在换行时调整文档位置
-            if (event.key === "Enter") {
-                scrollCenter(vditor);
-            }
-            if ((event.key === "Backspace" || event.key === "Delete") &&
+          if (event.isComposing || isCtrl(event)) {
+            return;
+          }
+          // 除 md 处理、cell 内换行、table 添加新行/列、代码块语言切换、block render 换行、跳出/逐层跳出 blockquote、h6 换行、
+          // 任务列表换行、软换行外需在换行时调整文档位置
+          if (event.key === "Enter") {
+            scrollCenter(vditor);
+          }
+          if ((event.key === "Backspace" || event.key === "Delete") &&
                 vditor.wysiwyg.element.innerHTML !== "" && vditor.wysiwyg.element.childNodes.length === 1 &&
                 vditor.wysiwyg.element.firstElementChild && vditor.wysiwyg.element.firstElementChild.tagName === "P"
                 && vditor.wysiwyg.element.firstElementChild.childElementCount === 0
                 && (vditor.wysiwyg.element.textContent === "" || vditor.wysiwyg.element.textContent === "\n")) {
-                // 为空时显示 placeholder
-                vditor.wysiwyg.element.innerHTML = "";
+            // 为空时显示 placeholder
+            vditor.wysiwyg.element.innerHTML = "";
+          }
+          const range = getEditorRange(vditor);
+          if (event.key === "Backspace") {
+            // firefox headings https://github.com/Vanessa219/vditor/issues/211
+            if (isFirefox() && range.startContainer.textContent === "\n" && range.startOffset === 1) {
+              range.startContainer.textContent = "";
             }
-            const range = getEditorRange(vditor);
-            if (event.key === "Backspace") {
-                // firefox headings https://github.com/Vanessa219/vditor/issues/211
-                if (isFirefox() && range.startContainer.textContent === "\n" && range.startOffset === 1) {
-                    range.startContainer.textContent = "";
-                }
+            // 点击后光标落于预览区，需展开代码块
+            let previewElement = hasClosestByClassName(event.target, "vditor-wysiwyg__preview");
+            if (!previewElement) {
+              previewElement =
+                    hasClosestByClassName(getEditorRange(vditor).startContainer, "vditor-wysiwyg__preview");
             }
+            // 当光标落于展示区的时候 不展开代码块
+            if (previewElement) {
+              const itemElement: HTMLElement = vditor.wysiwyg.popover.querySelector('[data-type="remove"]');
+              if (itemElement) {
+                itemElement.click();
+                event.preventDefault();
+              }
+              // showCode(previewElement, vditor);
+            }
+          }
 
-            // 没有被块元素包裹
-            modifyPre(vditor, range);
+          // 没有被块元素包裹
+          modifyPre(vditor, range);
 
-            highlightToolbarWYSIWYG(vditor);
+          highlightToolbarWYSIWYG(vditor);
 
-            if (event.key !== "ArrowDown" && event.key !== "ArrowRight" && event.key !== "Backspace"
+          if (event.key !== "ArrowDown" && event.key !== "ArrowRight" && event.key !== "Backspace"
                 && event.key !== "ArrowLeft" && event.key !== "ArrowUp") {
-                return;
-            }
+            return;
+          }
 
-            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                vditor.hint.render(vditor);
-            }
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            vditor.hint.render(vditor);
+          }
 
-            // 上下左右，删除遇到块预览的处理
-            let previewElement = hasClosestByClassName(range.startContainer, "vditor-wysiwyg__preview");
-            if (!previewElement && range.startContainer.nodeType !== 3 && range.startOffset > 0) {
-                // table 前删除遇到代码块
-                const blockRenderElement = range.startContainer as HTMLElement;
-                if (blockRenderElement.classList.contains("vditor-wysiwyg__block")) {
+          // 上下左右，删除遇到块预览的处理
+          let previewElement = hasClosestByClassName(range.startContainer, "vditor-wysiwyg__preview");
+          if (!previewElement && range.startContainer.nodeType !== 3 && range.startOffset > 0) {
+            // table 前删除遇到代码块
+            const blockRenderElement = range.startContainer as HTMLElement;
+            if (blockRenderElement.classList.contains("vditor-wysiwyg__block")) {
                     previewElement = blockRenderElement.lastElementChild as HTMLElement;
                 }
             }
